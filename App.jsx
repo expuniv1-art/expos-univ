@@ -1,5 +1,4 @@
-import { supabase } from './supabaseClient'
-  import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   AlertCircle,
@@ -209,32 +208,206 @@ function Progress({ value }) {
   );
 }
 
-function Login({ lang, setLang, onLogin, error }) {
+function Login({ lang, setLang, onLogin, onSignup, error }) {
   const t = dict[lang];
+  const [authMode, setAuthMode] = useState('login');
   const [email, setEmail] = useState('');
+  const [emailConfirm, setEmailConfirm] = useState('');
   const [password, setPassword] = useState('');
+  const [localError, setLocalError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
+  const isSignup = authMode === 'signup';
+
+  const ui = {
+    ar: {
+      loginTitle: 'تسجيل الدخول إلى المنصة',
+      signupTitle: 'إنشاء حساب جديد',
+      emailConfirm: 'تأكيد البريد الإلكتروني',
+      createAccount: 'إنشاء حساب',
+      createNewAccount: 'إنشاء حساب جديد',
+      alreadyHaveAccount: 'لدي حساب بالفعل',
+      wait: 'يرجى الانتظار...',
+      fillAll: 'يرجى ملء جميع الحقول.',
+      emailMismatch: 'البريدان الإلكترونيان غير متطابقين.',
+      shortPassword: 'كلمة المرور يجب أن تحتوي على 6 أحرف على الأقل.',
+      signupSuccess: 'تم إنشاء الحساب بنجاح. يمكنك الدخول الآن.',
+      loginHint: 'يمكن للطالب إنشاء حسابه بنفسه باستعمال البريد وكلمة المرور.',
+    },
+    fr: {
+      loginTitle: 'Connexion à la plateforme',
+      signupTitle: 'Créer un compte',
+      emailConfirm: 'Confirmer l’adresse e-mail',
+      createAccount: 'Créer le compte',
+      createNewAccount: 'Créer un nouveau compte',
+      alreadyHaveAccount: 'J’ai déjà un compte',
+      wait: 'Veuillez patienter...',
+      fillAll: 'Veuillez remplir tous les champs.',
+      emailMismatch: 'Les deux adresses e-mail ne sont pas identiques.',
+      shortPassword: 'Le mot de passe doit contenir au moins 6 caractères.',
+      signupSuccess: 'Compte créé avec succès. Vous pouvez vous connecter maintenant.',
+      loginHint: 'L’étudiant peut créer son compte avec son e-mail et son mot de passe.',
+    },
+  }[lang];
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setLocalError('');
+    setSuccessMessage('');
+
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanEmailConfirm = emailConfirm.trim().toLowerCase();
+
+    if (!cleanEmail || !password || (isSignup && !cleanEmailConfirm)) {
+      setLocalError(ui.fillAll);
+      return;
+    }
+
+    if (isSignup && cleanEmail !== cleanEmailConfirm) {
+      setLocalError(ui.emailMismatch);
+      return;
+    }
+
+    if (password.length < 6) {
+      setLocalError(ui.shortPassword);
+      return;
+    }
+
+    setAuthLoading(true);
+    const result = isSignup
+      ? await onSignup(cleanEmail, password)
+      : await onLogin(cleanEmail, password);
+    setAuthLoading(false);
+
+    if (!result?.ok) {
+      setLocalError(result?.message || t.loginError);
+      return;
+    }
+
+    if (isSignup) {
+      setSuccessMessage(result?.message || ui.signupSuccess);
+      setAuthMode('login');
+      setEmailConfirm('');
+      setPassword('');
+    }
+  }
 
   return (
     <main dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-950 text-white">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(37,99,235,0.45),transparent_35%),radial-gradient(circle_at_bottom_right,rgba(255,255,255,0.11),transparent_35%)]" />
       <div className="relative mx-auto grid min-h-screen max-w-7xl items-center gap-10 px-5 py-10 lg:grid-cols-2 lg:px-10">
         <section className="space-y-7">
-          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm backdrop-blur"><GraduationCap className="h-5 w-5 text-blue-300" />{t.brand}</div>
-          <h1 className="max-w-2xl text-4xl font-black leading-tight sm:text-5xl">منصة احترافية لمتابعة مشاريع الطلبة والدفع والملفات النهائية.</h1>
+          <div className="inline-flex items-center gap-3 rounded-full border border-white/10 bg-white/10 px-4 py-2 text-sm backdrop-blur">
+            <GraduationCap className="h-5 w-5 text-blue-300" />
+            {t.brand}
+          </div>
+          <h1 className="max-w-2xl text-4xl font-black leading-tight sm:text-5xl">
+            منصة احترافية لمتابعة مشاريع الطلبة والدفع والملفات النهائية.
+          </h1>
           <p className="max-w-xl text-lg leading-8 text-slate-300">{t.subtitle}</p>
           <div className="grid gap-4 sm:grid-cols-3">
-            {[ShieldCheck, Bell, FileText].map((Icon, i) => <div key={i} className="rounded-3xl border border-white/10 bg-white/10 p-4"><Icon className="mb-3 h-6 w-6 text-blue-300" /><p className="text-sm font-bold">Supabase Ready</p></div>)}
+            {[ShieldCheck, Bell, FileText].map((Icon, i) => (
+              <div key={i} className="rounded-3xl border border-white/10 bg-white/10 p-4">
+                <Icon className="mb-3 h-6 w-6 text-blue-300" />
+                <p className="text-sm font-bold">Supabase Ready</p>
+              </div>
+            ))}
           </div>
         </section>
-        <form onSubmit={(e) => { e.preventDefault(); onLogin(email, password); }} className="mx-auto w-full max-w-md rounded-[2rem] bg-white p-6 text-slate-950 shadow-2xl">
+
+        <form onSubmit={handleSubmit} className="mx-auto w-full max-w-md rounded-[2rem] bg-white p-6 text-slate-950 shadow-2xl">
           <div className="mb-6 flex items-start justify-between gap-4">
-            <div><h2 className="text-2xl font-black">{t.loginTitle}</h2><p className="mt-2 text-sm leading-6 text-slate-500">Supabase Auth + RLS</p></div>
-            <button type="button" onClick={() => setLang(lang === 'ar' ? 'fr' : 'ar')} className="rounded-2xl border border-slate-200 p-3"><Languages className="h-5 w-5" /></button>
+            <div>
+              <h2 className="text-2xl font-black">
+                {isSignup ? ui.signupTitle : ui.loginTitle}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-slate-500">{ui.loginHint}</p>
+            </div>
+            <button type="button" onClick={() => setLang(lang === 'ar' ? 'fr' : 'ar')} className="rounded-2xl border border-slate-200 p-3">
+              <Languages className="h-5 w-5" />
+            </button>
           </div>
-          <label className="mb-4 block"><span className="mb-2 block text-sm font-bold text-slate-600">{t.email}</span><div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><Mail className="h-5 w-5 text-slate-400" /><input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full bg-transparent outline-none" placeholder="admin@expos-univ.com" /></div></label>
-          <label className="block"><span className="mb-2 block text-sm font-bold text-slate-600">{t.password}</span><div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3"><Lock className="h-5 w-5 text-slate-400" /><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-transparent outline-none" placeholder="••••••••" /></div></label>
-          <AnimatePresence>{error && <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">{error}</motion.p>}</AnimatePresence>
-          <button className="mt-6 w-full rounded-2xl bg-blue-700 px-5 py-4 font-black text-white shadow-lg shadow-blue-700/20 hover:bg-blue-800">{t.login}</button>
+
+          <label className="mb-4 block">
+            <span className="mb-2 block text-sm font-bold text-slate-600">{t.email}</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <Mail className="h-5 w-5 text-slate-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-transparent outline-none"
+                placeholder="student@gmail.com"
+                required
+              />
+            </div>
+          </label>
+
+          {isSignup && (
+            <label className="mb-4 block">
+              <span className="mb-2 block text-sm font-bold text-slate-600">{ui.emailConfirm}</span>
+              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                <Mail className="h-5 w-5 text-slate-400" />
+                <input
+                  type="email"
+                  value={emailConfirm}
+                  onChange={(e) => setEmailConfirm(e.target.value)}
+                  className="w-full bg-transparent outline-none"
+                  placeholder="student@gmail.com"
+                  required
+                />
+              </div>
+            </label>
+          )}
+
+          <label className="block">
+            <span className="mb-2 block text-sm font-bold text-slate-600">{t.password}</span>
+            <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <Lock className="h-5 w-5 text-slate-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-transparent outline-none"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+          </label>
+
+          <AnimatePresence>
+            {(localError || error) && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+                {localError || error}
+              </motion.p>
+            )}
+          </AnimatePresence>
+
+          {successMessage && (
+            <p className="mt-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-700">
+              {successMessage}
+            </p>
+          )}
+
+          <button
+            disabled={authLoading}
+            className="mt-6 w-full rounded-2xl bg-blue-700 px-5 py-4 font-black text-white shadow-lg shadow-blue-700/20 hover:bg-blue-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {authLoading ? ui.wait : isSignup ? ui.createAccount : t.login}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setLocalError('');
+              setSuccessMessage('');
+              setAuthMode(isSignup ? 'login' : 'signup');
+            }}
+            className="mt-3 w-full rounded-2xl border border-blue-700 px-5 py-4 font-black text-blue-700 hover:bg-blue-50"
+          >
+            {isSignup ? ui.alreadyHaveAccount : ui.createNewAccount}
+          </button>
         </form>
       </div>
     </main>
@@ -355,7 +528,40 @@ export default function App() {
 
     const { data: studentData, error: studentsError } = await supabase.from('students').select('*').order('created_at', { ascending: false });
     if (studentsError) setError(studentsError.message);
-    const list = studentData || [];
+
+    let list = studentData || [];
+
+    // Safety fallback: if the SQL trigger did not create a student record,
+    // the app creates a default one for the connected student.
+    if (finalProfile.role !== 'admin' && list.length === 0) {
+      const defaultStudent = {
+        user_id: session.user.id,
+        name: finalProfile.full_name || session.user.email,
+        university: 'غير محدد',
+        specialty: 'غير محدد',
+        project_type: 'مشروع جامعي',
+        total_amount: 0,
+        paid_amount: 0,
+        payment_status: 'pending',
+        project_status: 'not_started',
+        progress: 0,
+        last_admin_update: 'تم إنشاء الحساب بنجاح. سيتم تحديث معلومات المشروع من طرف الإدارة.',
+        delivery_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+      };
+
+      const { data: createdStudent, error: createStudentError } = await supabase
+        .from('students')
+        .insert(defaultStudent)
+        .select()
+        .single();
+
+      if (createStudentError) {
+        setError(createStudentError.message);
+      } else if (createdStudent) {
+        list = [createdStudent];
+      }
+    }
+
     setStudents(list);
     const selected = finalProfile.role === 'admin' ? (selectedId || list[0]?.id) : list[0]?.id;
     setSelectedId(selected || '');
@@ -397,8 +603,58 @@ export default function App() {
 
   async function login(email, password) {
     setError('');
-    const { error: loginError } = await supabase.auth.signInWithPassword({ email, password });
-    if (loginError) setError(t.loginError);
+    const cleanEmail = email.trim().toLowerCase();
+
+    const { data, error: loginError } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password,
+    });
+
+    if (loginError) {
+      const message = loginError.message || t.loginError;
+      setError(message);
+      return { ok: false, message };
+    }
+
+    if (data?.session) {
+      setSession(data.session);
+    }
+
+    return { ok: true };
+  }
+
+  async function signup(email, password) {
+    setError('');
+    const cleanEmail = email.trim().toLowerCase();
+
+    const { data, error: signupError } = await supabase.auth.signUp({
+      email: cleanEmail,
+      password,
+      options: {
+        data: {
+          full_name: cleanEmail,
+        },
+        emailRedirectTo: window.location.origin,
+      },
+    });
+
+    if (signupError) {
+      const message = signupError.message || t.saveError;
+      setError(message);
+      return { ok: false, message };
+    }
+
+    if (data?.session) {
+      setSession(data.session);
+      return { ok: true, message: lang === 'ar' ? 'تم إنشاء الحساب وتسجيل الدخول بنجاح.' : 'Account created and logged in successfully.' };
+    }
+
+    return {
+      ok: true,
+      message: lang === 'ar'
+        ? 'تم إنشاء الحساب بنجاح. يمكنك تسجيل الدخول الآن.'
+        : 'Account created successfully. You can login now.',
+    };
   }
 
   async function logout() {
@@ -456,7 +712,7 @@ export default function App() {
     await loadRelated();
   }
 
-  if (!session) return <Login lang={lang} setLang={setLang} onLogin={login} error={error} />;
+  if (!session) return <Login lang={lang} setLang={setLang} onLogin={login} onSignup={signup} error={error} />;
 
   return (
     <div dir={lang === 'ar' ? 'rtl' : 'ltr'} className="min-h-screen bg-slate-50 text-slate-950">
